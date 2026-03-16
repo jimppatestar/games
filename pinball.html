@@ -3,17 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Mobile Pinball</title>
+<title>Ahola Pinball - Way Ahead</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body {
   width: 100%; height: 100%;
   overflow: hidden;
-  background: #0a0a1a;
+  background: #1a0a0a;
   touch-action: none;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+  font-family: 'Arial', 'Helvetica Neue', sans-serif;
 }
 canvas {
   display: block;
@@ -28,33 +29,36 @@ canvas {
 }
 #score-display {
   position: absolute;
-  top: 10px; left: 50%;
+  top: 8px; left: 50%;
   transform: translateX(-50%);
-  color: #ff0;
-  font-family: 'Courier New', monospace;
-  font-size: 20px;
-  font-weight: bold;
-  text-shadow: 0 0 10px #ff0, 0 0 20px #f80;
+  color: #fff;
+  font-family: 'Arial Black', 'Arial', sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  text-shadow: 0 0 10px #E3000B, 0 0 20px #E3000B;
   text-align: center;
+  letter-spacing: 2px;
 }
 #ball-display {
   position: absolute;
   top: 36px; left: 50%;
   transform: translateX(-50%);
-  color: #0ff;
-  font-family: 'Courier New', monospace;
-  font-size: 14px;
-  text-shadow: 0 0 8px #0ff;
+  color: #F58220;
+  font-family: 'Arial', sans-serif;
+  font-size: 13px;
+  font-weight: bold;
+  text-shadow: 0 0 8px #F58220;
+  letter-spacing: 1px;
 }
 #message {
   position: absolute;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
   color: #fff;
-  font-family: 'Courier New', monospace;
+  font-family: 'Arial Black', 'Arial', sans-serif;
   font-size: 24px;
   text-align: center;
-  text-shadow: 0 0 15px #f0f, 0 0 30px #80f;
+  text-shadow: 0 0 15px #E3000B, 0 0 30px #F58220;
   pointer-events: auto;
   display: none;
   line-height: 1.6;
@@ -80,6 +84,170 @@ canvas {
 </div>
 
 <script>
+// ══════════════════════════════════════════════════════════
+// AHOLA PINBALL - "WAY AHEAD"
+// Branded pinball game for Ahola Group
+// ══════════════════════════════════════════════════════════
+
+// ── Ahola Brand Colors ──
+const AHOLA = {
+  RED:        '#E3000B',
+  RED_DARK:   '#8B0006',
+  RED_LIGHT:  '#FF3038',
+  ORANGE:     '#F58220',
+  ORANGE_DARK:'#C06010',
+  ORANGE_LIGHT:'#FFa040',
+  WHITE:      '#FFFFFF',
+  GRAY_LIGHT: '#D0D0D0',
+  GRAY:       '#808080',
+  GRAY_DARK:  '#333333',
+  BLACK:      '#111111',
+  BG_DARK:    '#1A0508',
+  BG_MID:     '#200A0E',
+  BG_LIGHT:   '#2A0C10',
+};
+
+// ── SVG Logo Rendering ──
+// Pre-render Ahola logos to offscreen canvases
+function createAholaArrowSVG(size, color1, color2) {
+  // The Ahola arrow/triangle mark - a forward-pointing dynamic arrow
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const x = c.getContext('2d');
+  const s = size / 100;
+
+  // Arrow triangle pointing right/up
+  const grad = x.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, color1);
+  grad.addColorStop(1, color2);
+  x.fillStyle = grad;
+
+  // Main triangle
+  x.beginPath();
+  x.moveTo(10 * s, 85 * s);
+  x.lineTo(90 * s, 50 * s);
+  x.lineTo(10 * s, 15 * s);
+  x.closePath();
+  x.fill();
+
+  // Inner cutout for style
+  x.fillStyle = 'rgba(0,0,0,0.3)';
+  x.beginPath();
+  x.moveTo(25 * s, 65 * s);
+  x.lineTo(60 * s, 50 * s);
+  x.lineTo(25 * s, 35 * s);
+  x.closePath();
+  x.fill();
+
+  return c;
+}
+
+function createAholaLogoSVG(width, height) {
+  // Full "AHOLA" wordmark with arrow
+  const c = document.createElement('canvas');
+  c.width = width; c.height = height;
+  const x = c.getContext('2d');
+
+  // Arrow icon
+  const arrowSize = height * 0.8;
+  const arrow = createAholaArrowSVG(arrowSize, AHOLA.RED, AHOLA.ORANGE);
+  x.drawImage(arrow, 2, height * 0.1);
+
+  // Text
+  x.fillStyle = AHOLA.WHITE;
+  x.font = `bold ${height * 0.55}px Arial Black, Arial, sans-serif`;
+  x.textBaseline = 'middle';
+  x.fillText('AHOLA', arrowSize + 4, height * 0.48);
+
+  return c;
+}
+
+function createTransportIcon(size) {
+  // Simple truck silhouette
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const x = c.getContext('2d');
+  const s = size / 60;
+
+  x.fillStyle = AHOLA.ORANGE;
+  // Cargo
+  x.fillRect(5 * s, 15 * s, 30 * s, 25 * s);
+  // Cab
+  x.fillRect(35 * s, 20 * s, 18 * s, 20 * s);
+  // Windshield
+  x.fillStyle = AHOLA.RED_LIGHT;
+  x.fillRect(40 * s, 22 * s, 10 * s, 10 * s);
+  // Wheels
+  x.fillStyle = AHOLA.GRAY_DARK;
+  x.beginPath(); x.arc(18 * s, 42 * s, 5 * s, 0, Math.PI * 2); x.fill();
+  x.beginPath(); x.arc(42 * s, 42 * s, 5 * s, 0, Math.PI * 2); x.fill();
+
+  return c;
+}
+
+function createDigitalIcon(size) {
+  // Circuit/digital node icon
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const x = c.getContext('2d');
+  const s = size / 60;
+  const cx = 30 * s, cy = 30 * s;
+
+  // Central node
+  x.fillStyle = AHOLA.RED;
+  x.beginPath(); x.arc(cx, cy, 8 * s, 0, Math.PI * 2); x.fill();
+
+  // Connection lines
+  x.strokeStyle = AHOLA.ORANGE;
+  x.lineWidth = 2 * s;
+  const nodes = [
+    [10, 10], [50, 10], [10, 50], [50, 50], [30, 5], [30, 55]
+  ];
+  for (const [nx, ny] of nodes) {
+    x.beginPath(); x.moveTo(cx, cy); x.lineTo(nx * s, ny * s); x.stroke();
+    x.fillStyle = AHOLA.ORANGE_LIGHT;
+    x.beginPath(); x.arc(nx * s, ny * s, 4 * s, 0, Math.PI * 2); x.fill();
+  }
+
+  return c;
+}
+
+function createSpecialIcon(size) {
+  // Heavy transport / crane icon
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const x = c.getContext('2d');
+  const s = size / 60;
+
+  // Crane arm
+  x.strokeStyle = AHOLA.RED;
+  x.lineWidth = 3 * s;
+  x.beginPath(); x.moveTo(15 * s, 45 * s); x.lineTo(15 * s, 15 * s); x.lineTo(45 * s, 10 * s); x.stroke();
+  // Cable
+  x.strokeStyle = AHOLA.ORANGE;
+  x.lineWidth = 1.5 * s;
+  x.beginPath(); x.moveTo(45 * s, 10 * s); x.lineTo(45 * s, 30 * s); x.stroke();
+  // Hook
+  x.beginPath(); x.arc(45 * s, 34 * s, 4 * s, 0, Math.PI); x.stroke();
+  // Base
+  x.fillStyle = AHOLA.RED_DARK;
+  x.fillRect(5 * s, 42 * s, 50 * s, 10 * s);
+  // Wheels
+  x.fillStyle = AHOLA.GRAY_DARK;
+  x.beginPath(); x.arc(15 * s, 54 * s, 4 * s, 0, Math.PI * 2); x.fill();
+  x.beginPath(); x.arc(45 * s, 54 * s, 4 * s, 0, Math.PI * 2); x.fill();
+
+  return c;
+}
+
+// Pre-render logos
+const logoMain = createAholaLogoSVG(180, 40);
+const arrowLogo = createAholaArrowSVG(60, AHOLA.RED, AHOLA.ORANGE);
+const arrowLogoSmall = createAholaArrowSVG(30, AHOLA.RED, AHOLA.ORANGE);
+const transportIcon = createTransportIcon(50);
+const digitalIcon = createDigitalIcon(50);
+const specialIcon = createSpecialIcon(50);
+
 // ── Canvas Setup ──
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -101,7 +269,6 @@ function resize() {
   canvas.height = H;
   SCALE = W / TABLE_W;
 
-  // Reposition launch zone
   const lz = document.getElementById('launch-zone');
   lz.style.width = (60 * SCALE) + 'px';
   lz.style.height = (200 * SCALE) + 'px';
@@ -131,6 +298,7 @@ let combo = 1;
 let comboTimer = 0;
 let shakeTimer = 0;
 let shakeIntensity = 0;
+let gameTime = 0;
 
 // ── Ball ──
 let ball = { x: 375, y: 650, vx: 0, vy: 0, alive: false, trail: [] };
@@ -141,43 +309,37 @@ const flippers = [
   { x: 260, y: 660, angle: -0.45, targetAngle: -0.45, restAngle: -0.45, flipAngle: 0.7, dir: -1, active: false }
 ];
 
-// ── Bumpers ──
+// ── Bumpers (Ahola branded) ──
 const bumpers = [
-  { x: 200, y: 200, r: 28, score: 100, flash: 0, color: '#f44' },
-  { x: 140, y: 280, r: 25, score: 100, flash: 0, color: '#4f4' },
-  { x: 260, y: 280, r: 25, score: 100, flash: 0, color: '#44f' },
-  { x: 200, y: 360, r: 22, score: 150, flash: 0, color: '#ff4' },
-  { x: 130, y: 170, r: 20, score: 200, flash: 0, color: '#f4f' },
-  { x: 270, y: 170, r: 20, score: 200, flash: 0, color: '#4ff' },
+  { x: 200, y: 200, r: 28, score: 100, flash: 0, color: AHOLA.RED,          label: 'A',    type: 'transport' },
+  { x: 140, y: 280, r: 25, score: 100, flash: 0, color: AHOLA.ORANGE,       label: 'H',    type: 'digital' },
+  { x: 260, y: 280, r: 25, score: 100, flash: 0, color: AHOLA.RED,          label: 'O',    type: 'special' },
+  { x: 200, y: 360, r: 22, score: 150, flash: 0, color: AHOLA.ORANGE,       label: 'L',    type: 'transport' },
+  { x: 130, y: 170, r: 20, score: 200, flash: 0, color: AHOLA.RED_LIGHT,    label: 'A',    type: 'digital' },
+  { x: 270, y: 170, r: 20, score: 200, flash: 0, color: AHOLA.ORANGE_LIGHT, label: '!',    type: 'special' },
 ];
 
-// ── Slingshots (triangular kickers) ──
+// ── Slingshots (Ahola arrow-shaped kickers) ──
 const slingshots = [
   { x1: 80, y1: 560, x2: 80, y2: 620, x3: 130, y3: 640, flash: 0, score: 10 },
   { x1: 320, y1: 560, x2: 320, y2: 620, x3: 270, y3: 640, flash: 0, score: 10 },
 ];
 
-// ── Rollover Lanes (top) ──
+// ── Rollover Lanes - "W A Y" themed ──
 const lanes = [
-  { x: 120, y: 90, lit: false, flash: 0 },
-  { x: 160, y: 80, lit: false, flash: 0 },
-  { x: 200, y: 75, lit: false, flash: 0 },
-  { x: 240, y: 80, lit: false, flash: 0 },
-  { x: 280, y: 90, lit: false, flash: 0 },
+  { x: 120, y: 90, lit: false, flash: 0, label: 'W' },
+  { x: 160, y: 80, lit: false, flash: 0, label: 'A' },
+  { x: 200, y: 75, lit: false, flash: 0, label: 'Y' },
+  { x: 240, y: 80, lit: false, flash: 0, label: 'A' },
+  { x: 280, y: 90, lit: false, flash: 0, label: 'H' },
 ];
 
-// ── Targets ──
+// ── Targets - "AHEAD" themed ──
 const targets = [
-  { x: 60, y: 350, w: 8, h: 40, hit: false, flash: 0, score: 250 },
-  { x: 60, y: 410, w: 8, h: 40, hit: false, flash: 0, score: 250 },
-  { x: 340, y: 350, w: 8, h: 40, hit: false, flash: 0, score: 250 },
-  { x: 340, y: 410, w: 8, h: 40, hit: false, flash: 0, score: 250 },
-];
-
-// ── Ramps / Rails ──
-const rails = [
-  { x: 50, y1: 130, y2: 500, side: 'left' },
-  { x: 350, y1: 130, y2: 500, side: 'right' },
+  { x: 60, y: 350, w: 8, h: 40, hit: false, flash: 0, score: 250, label: 'A' },
+  { x: 60, y: 410, w: 8, h: 40, hit: false, flash: 0, score: 250, label: 'D' },
+  { x: 340, y: 350, w: 8, h: 40, hit: false, flash: 0, score: 250, label: 'E' },
+  { x: 340, y: 410, w: 8, h: 40, hit: false, flash: 0, score: 250, label: 'H' },
 ];
 
 // ── Particles ──
@@ -199,10 +361,29 @@ function spawnParticles(x, y, color, count) {
   }
 }
 
+// Ahola-branded particles (triangular)
+function spawnAholaParticles(x, y, count) {
+  const colors = [AHOLA.RED, AHOLA.ORANGE, AHOLA.RED_LIGHT, AHOLA.ORANGE_LIGHT, AHOLA.WHITE];
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 80 + Math.random() * 250;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 0.5 + Math.random() * 0.5,
+      maxLife: 0.5 + Math.random() * 0.5,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      size: 2 + Math.random() * 4,
+      triangle: Math.random() > 0.5
+    });
+  }
+}
+
 // ── Score Popups ──
 let popups = [];
 function addPopup(x, y, text, color) {
-  popups.push({ x, y, text, color, life: 1.0 });
+  popups.push({ x, y, text, color: color || AHOLA.WHITE, life: 1.0 });
 }
 
 // ── Input Handling ──
@@ -242,7 +423,6 @@ document.addEventListener('keyup', (e) => {
   if (e.key === ' ' && launching) { releaseBall(); launching = false; }
 });
 
-// Launch zone touch
 const launchZone = document.getElementById('launch-zone');
 launchZone.addEventListener('touchstart', (e) => {
   e.stopPropagation();
@@ -255,13 +435,7 @@ launchZone.addEventListener('touchend', (e) => {
 }, { passive: false });
 
 function handleInput() {
-  if (gameOver) {
-    resetGame();
-    return;
-  }
-  if (!ballInPlay && !launching) {
-    // Tapping to place ball in launcher
-  }
+  if (gameOver) { resetGame(); return; }
 }
 
 function releaseBall() {
@@ -296,7 +470,7 @@ function resetGame() {
 function addScore(pts, x, y) {
   const gained = pts * combo;
   score += gained;
-  addPopup(x, y, '+' + gained, combo > 1 ? '#ff0' : '#fff');
+  addPopup(x, y, '+' + gained, combo > 1 ? AHOLA.ORANGE_LIGHT : AHOLA.WHITE);
   comboTimer = 3;
   if (combo < 10) combo++;
 }
@@ -307,12 +481,12 @@ function loseBall() {
   balls--;
   shakeTimer = 0.3;
   shakeIntensity = 8;
-  spawnParticles(ball.x, ball.y, '#f80', 30);
+  spawnAholaParticles(ball.x, ball.y, 30);
 
   if (balls <= 0) {
     gameOver = true;
     const msg = document.getElementById('message');
-    msg.innerHTML = 'GAME OVER<br><br>SCORE: ' + score + '<br><br>TAP TO PLAY';
+    msg.innerHTML = 'GAME OVER<br><br>SCORE: ' + score.toLocaleString() + '<br><br><span style="font-size:16px;color:' + AHOLA.ORANGE + '">TAP TO PLAY AGAIN</span>';
     msg.style.display = 'block';
   }
 }
@@ -345,18 +519,15 @@ function flipperCollision(b, f) {
   if (result.dist < minDist && result.dist > 0.01) {
     const nx = result.nx / result.dist;
     const ny = result.ny / result.dist;
-    // Push ball out
     const overlap = minDist - result.dist;
     b.x += nx * overlap;
     b.y += ny * overlap;
-    // Reflect velocity
     const dot = b.vx * nx + b.vy * ny;
     if (dot < 0) {
       b.vx -= 2 * dot * nx;
       b.vy -= 2 * dot * ny;
       b.vx *= RESTITUTION;
       b.vy *= RESTITUTION;
-      // Apply flipper impulse if active
       if (f.active) {
         const impX = nx * FLIPPER_STRENGTH;
         const impY = ny * FLIPPER_STRENGTH * 0.85;
@@ -372,8 +543,8 @@ function flipperCollision(b, f) {
 // ── Update ──
 let lastTime = 0;
 function update(dt) {
-  // Clamp dt
   if (dt > 0.032) dt = 0.032;
+  gameTime += dt;
 
   // Flipper animation
   flippers[0].active = leftDown;
@@ -396,68 +567,49 @@ function update(dt) {
     if (comboTimer <= 0) combo = 1;
   }
 
-  // Shake
   if (shakeTimer > 0) shakeTimer -= dt;
-
   if (!ball.alive) return;
 
-  // Sub-stepping for better collision
+  // Sub-stepping
   const steps = 3;
   const sdt = dt / steps;
 
   for (let s = 0; s < steps; s++) {
-    // Gravity
     ball.vy += GRAVITY * sdt;
-
-    // Move
     ball.x += ball.vx * sdt;
     ball.y += ball.vy * sdt;
-
-    // Damping
     ball.vx *= DAMPING;
     ball.vy *= DAMPING;
 
     // ── Wall collisions ──
-    // Left wall
     if (ball.x - BALL_RADIUS < 30) {
       ball.x = 30 + BALL_RADIUS;
       ball.vx = Math.abs(ball.vx) * WALL_RESTITUTION;
     }
-    // Right wall (except launcher area)
     if (ball.y < 550) {
       if (ball.x + BALL_RADIUS > 370) {
         ball.x = 370 - BALL_RADIUS;
         ball.vx = -Math.abs(ball.vx) * WALL_RESTITUTION;
       }
     } else {
-      // Launcher channel right wall
       if (ball.x + BALL_RADIUS > 395) {
         ball.x = 395 - BALL_RADIUS;
         ball.vx = -Math.abs(ball.vx) * WALL_RESTITUTION;
       }
     }
-    // Launcher channel left wall
     if (ball.x > 355 && ball.y > 550) {
       if (ball.x - BALL_RADIUS < 360) {
         ball.x = 360 + BALL_RADIUS;
         ball.vx = Math.abs(ball.vx) * WALL_RESTITUTION;
       }
     }
-
-    // Top wall (curved)
     if (ball.y - BALL_RADIUS < 50) {
       ball.y = 50 + BALL_RADIUS;
       ball.vy = Math.abs(ball.vy) * WALL_RESTITUTION;
     }
+    if (ball.y > TABLE_H + 30) { loseBall(); return; }
 
-    // Drain
-    if (ball.y > TABLE_H + 30) {
-      loseBall();
-      return;
-    }
-
-    // Gutter walls (angled near flippers)
-    // Left gutter
+    // Gutter walls
     {
       const gx1 = 30, gy1 = 560, gx2 = 100, gy2 = 650;
       const r = pointLineSegDist(ball.x, ball.y, gx1, gy1, gx2, gy2);
@@ -466,13 +618,9 @@ function update(dt) {
         ball.x += nx * (BALL_RADIUS - r.dist);
         ball.y += ny * (BALL_RADIUS - r.dist);
         const dot = ball.vx * nx + ball.vy * ny;
-        if (dot < 0) {
-          ball.vx -= 2 * dot * nx * WALL_RESTITUTION;
-          ball.vy -= 2 * dot * ny * WALL_RESTITUTION;
-        }
+        if (dot < 0) { ball.vx -= 2 * dot * nx * WALL_RESTITUTION; ball.vy -= 2 * dot * ny * WALL_RESTITUTION; }
       }
     }
-    // Right gutter
     {
       const gx1 = 370, gy1 = 560, gx2 = 300, gy2 = 650;
       const r = pointLineSegDist(ball.x, ball.y, gx1, gy1, gx2, gy2);
@@ -481,10 +629,7 @@ function update(dt) {
         ball.x += nx * (BALL_RADIUS - r.dist);
         ball.y += ny * (BALL_RADIUS - r.dist);
         const dot = ball.vx * nx + ball.vy * ny;
-        if (dot < 0) {
-          ball.vx -= 2 * dot * nx * WALL_RESTITUTION;
-          ball.vy -= 2 * dot * ny * WALL_RESTITUTION;
-        }
+        if (dot < 0) { ball.vx -= 2 * dot * nx * WALL_RESTITUTION; ball.vy -= 2 * dot * ny * WALL_RESTITUTION; }
       }
     }
 
@@ -500,16 +645,14 @@ function update(dt) {
         ball.vy = col.ny * bounce;
         bumper.flash = 0.2;
         addScore(bumper.score, bumper.x, bumper.y - bumper.r - 15);
-        spawnParticles(bumper.x + col.nx * bumper.r, bumper.y + col.ny * bumper.r, bumper.color, 8);
+        spawnAholaParticles(bumper.x + col.nx * bumper.r, bumper.y + col.ny * bumper.r, 10);
         shakeTimer = 0.1;
         shakeIntensity = 4;
       }
     }
 
     // ── Flipper collisions ──
-    for (const f of flippers) {
-      flipperCollision(ball, f);
-    }
+    for (const f of flippers) { flipperCollision(ball, f); }
 
     // ── Slingshot collisions ──
     for (const sl of slingshots) {
@@ -525,13 +668,10 @@ function update(dt) {
           ball.x += nx * (BALL_RADIUS - r.dist);
           ball.y += ny * (BALL_RADIUS - r.dist);
           const dot = ball.vx * nx + ball.vy * ny;
-          if (dot < 0) {
-            ball.vx -= 2.5 * dot * nx;
-            ball.vy -= 2.5 * dot * ny;
-          }
+          if (dot < 0) { ball.vx -= 2.5 * dot * nx; ball.vy -= 2.5 * dot * ny; }
           sl.flash = 0.15;
           addScore(sl.score, sl.x1, sl.y1 - 20);
-          spawnParticles(r.cx, r.cy, '#fff', 5);
+          spawnParticles(r.cx, r.cy, AHOLA.ORANGE, 5);
           break;
         }
       }
@@ -545,12 +685,11 @@ function update(dt) {
           lane.lit = true;
           lane.flash = 0.3;
           addScore(50, lane.x, lane.y - 20);
-          // Check if all lit
           if (lanes.every(l => l.lit)) {
             addScore(1000, 200, 60);
-            addPopup(200, 60, 'ALL LANES!', '#f0f');
+            addPopup(200, 55, 'WAY AHEAD!', AHOLA.ORANGE_LIGHT);
             lanes.forEach(l => l.lit = false);
-            spawnParticles(200, 80, '#f0f', 25);
+            spawnAholaParticles(200, 80, 30);
           }
         }
       }
@@ -565,13 +704,12 @@ function update(dt) {
         t.flash = 0.3;
         addScore(t.score, t.x, t.y - 15);
         ball.vx = -ball.vx * 0.8;
-        spawnParticles(t.x, t.y + t.h / 2, '#0ff', 10);
-        // Check all hit
+        spawnAholaParticles(t.x, t.y + t.h / 2, 12);
         if (targets.every(tt => tt.hit)) {
           addScore(2000, 200, 380);
-          addPopup(200, 380, 'ALL TARGETS!', '#0ff');
+          addPopup(200, 380, 'FULL DELIVERY!', AHOLA.RED_LIGHT);
           targets.forEach(tt => tt.hit = false);
-          spawnParticles(200, 380, '#0ff', 30);
+          spawnAholaParticles(200, 380, 35);
         }
       }
     }
@@ -579,7 +717,7 @@ function update(dt) {
 
   // Trail
   ball.trail.push({ x: ball.x, y: ball.y });
-  if (ball.trail.length > 12) ball.trail.shift();
+  if (ball.trail.length > 14) ball.trail.shift();
 
   // Update particles
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -606,72 +744,139 @@ function update(dt) {
 
   // Update UI
   document.getElementById('score-display').textContent = score.toLocaleString();
-  document.getElementById('ball-display').textContent = 'BALLS: ' + balls + (combo > 1 ? '  x' + combo + ' COMBO' : '');
+  const comboText = combo > 1 ? '  x' + combo + ' COMBO' : '';
+  document.getElementById('ball-display').textContent = 'BALLS: ' + balls + comboText;
+}
+
+// ── Draw Ahola Arrow (in-game SVG-style) ──
+function drawAholaArrow(cx, cy, size, rotation, alpha) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rotation);
+  ctx.globalAlpha = alpha || 1;
+  const s = size / 100;
+
+  const grad = ctx.createLinearGradient(-40 * s, 0, 40 * s, 0);
+  grad.addColorStop(0, AHOLA.RED);
+  grad.addColorStop(1, AHOLA.ORANGE);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(-40 * s, 30 * s);
+  ctx.lineTo(45 * s, 0);
+  ctx.lineTo(-40 * s, -30 * s);
+  ctx.lineTo(-20 * s, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 // ── Render ──
 function render() {
   ctx.save();
 
-  // Shake
   let sx = 0, sy = 0;
   if (shakeTimer > 0) {
     sx = (Math.random() - 0.5) * shakeIntensity * 2;
     sy = (Math.random() - 0.5) * shakeIntensity * 2;
   }
 
-  // Center canvas
-  const offsetX = (window.innerWidth - W) / 2;
-  ctx.setTransform(SCALE, 0, 0, SCALE, offsetX * 0 + sx * SCALE, sy * SCALE);
+  ctx.setTransform(SCALE, 0, 0, SCALE, sx * SCALE, sy * SCALE);
 
-  // Background
+  // ── Background - Dark Ahola theme ──
   const bgGrad = ctx.createLinearGradient(0, 0, 0, TABLE_H);
-  bgGrad.addColorStop(0, '#0a0020');
-  bgGrad.addColorStop(0.5, '#100830');
-  bgGrad.addColorStop(1, '#0a0018');
+  bgGrad.addColorStop(0, '#1a0508');
+  bgGrad.addColorStop(0.3, '#200A0E');
+  bgGrad.addColorStop(0.7, '#1a0810');
+  bgGrad.addColorStop(1, '#150408');
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, TABLE_W, TABLE_H);
 
-  // Playfield border glow
-  ctx.strokeStyle = '#304';
+  // ── Subtle branded pattern - diagonal stripes ──
+  ctx.save();
+  ctx.globalAlpha = 0.03;
+  ctx.strokeStyle = AHOLA.RED;
+  ctx.lineWidth = 20;
+  for (let i = -TABLE_H; i < TABLE_W + TABLE_H; i += 60) {
+    ctx.beginPath();
+    ctx.moveTo(i, 0);
+    ctx.lineTo(i + TABLE_H, TABLE_H);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // ── Playfield border with Ahola red glow ──
+  ctx.shadowColor = AHOLA.RED;
+  ctx.shadowBlur = 8;
+  ctx.strokeStyle = AHOLA.RED_DARK;
   ctx.lineWidth = 3;
   ctx.strokeRect(28, 48, 344, TABLE_H - 46);
+  ctx.shadowBlur = 0;
 
-  // Draw grid lines for style
-  ctx.strokeStyle = 'rgba(60,20,80,0.3)';
-  ctx.lineWidth = 0.5;
-  for (let y = 50; y < TABLE_H; y += 40) {
-    ctx.beginPath(); ctx.moveTo(30, y); ctx.lineTo(370, y); ctx.stroke();
-  }
-  for (let x = 30; x < 370; x += 40) {
-    ctx.beginPath(); ctx.moveTo(x, 50); ctx.lineTo(x, TABLE_H); ctx.stroke();
-  }
+  // ── Ahola Logo at top center ──
+  ctx.drawImage(logoMain, 110, 52, 180, 40);
 
-  // ── Walls ──
-  ctx.strokeStyle = '#608';
+  // ── Decorative arrows on playfield ──
+  drawAholaArrow(65, 140, 35, -0.3, 0.15);
+  drawAholaArrow(335, 140, 35, 0.3 + Math.PI, 0.15);
+  drawAholaArrow(200, 460, 50, -Math.PI / 2, 0.08);
+  // Animated subtle arrows
+  const pulse = Math.sin(gameTime * 2) * 0.05 + 0.1;
+  drawAholaArrow(200, 510, 30, -Math.PI / 2, pulse);
+
+  // ── Division icons on playfield ──
+  ctx.globalAlpha = 0.2;
+  ctx.drawImage(transportIcon, 40, 480, 40, 40);
+  ctx.drawImage(digitalIcon,   310, 480, 40, 40);
+  ctx.drawImage(specialIcon,   170, 430, 40, 40);
+  ctx.globalAlpha = 1;
+
+  // ── "WAY AHEAD" text on playfield ──
+  ctx.save();
+  ctx.globalAlpha = 0.08;
+  ctx.fillStyle = AHOLA.WHITE;
+  ctx.font = 'bold 48px Arial Black, Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('WAY', 200, 245);
+  ctx.fillText('AHEAD', 200, 295);
+  ctx.restore();
+
+  // ── Walls - Ahola red ──
+  ctx.strokeStyle = AHOLA.RED_DARK;
   ctx.lineWidth = 4;
   ctx.lineCap = 'round';
+  ctx.shadowColor = AHOLA.RED;
+  ctx.shadowBlur = 6;
   // Left wall
   ctx.beginPath(); ctx.moveTo(30, 50); ctx.lineTo(30, 560); ctx.stroke();
   // Right wall
   ctx.beginPath(); ctx.moveTo(370, 50); ctx.lineTo(370, 560); ctx.stroke();
   // Top arc
   ctx.beginPath(); ctx.arc(200, 50, 170, Math.PI, 0); ctx.stroke();
-  // Gutter walls
-  ctx.strokeStyle = '#806';
+  ctx.shadowBlur = 0;
+  // Gutter walls - orange accent
+  ctx.strokeStyle = AHOLA.ORANGE_DARK;
+  ctx.shadowColor = AHOLA.ORANGE;
+  ctx.shadowBlur = 4;
   ctx.beginPath(); ctx.moveTo(30, 560); ctx.lineTo(100, 650); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(370, 560); ctx.lineTo(300, 650); ctx.stroke();
+  ctx.shadowBlur = 0;
   // Launcher channel
-  ctx.strokeStyle = '#444';
+  ctx.strokeStyle = AHOLA.GRAY_DARK;
   ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(360, 550); ctx.lineTo(360, TABLE_H); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(395, 50); ctx.lineTo(395, TABLE_H); ctx.stroke();
 
-  // ── Slingshots ──
+  // ── Slingshots - Ahola arrow style ──
   for (const sl of slingshots) {
-    ctx.fillStyle = sl.flash > 0 ? '#fff' : 'rgba(200,100,50,0.4)';
-    ctx.strokeStyle = sl.flash > 0 ? '#ff8' : '#a64';
+    const flash = sl.flash > 0;
+    ctx.fillStyle = flash ? AHOLA.ORANGE_LIGHT : 'rgba(227,0,11,0.25)';
+    ctx.strokeStyle = flash ? AHOLA.WHITE : AHOLA.RED;
     ctx.lineWidth = 2;
+    ctx.shadowColor = flash ? AHOLA.ORANGE : 'transparent';
+    ctx.shadowBlur = flash ? 12 : 0;
     ctx.beginPath();
     ctx.moveTo(sl.x1, sl.y1);
     ctx.lineTo(sl.x2, sl.y2);
@@ -679,81 +884,142 @@ function render() {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+    ctx.shadowBlur = 0;
+    // Small arrow icon inside
+    if (!flash) {
+      const mx = (sl.x1 + sl.x2 + sl.x3) / 3;
+      const my = (sl.y1 + sl.y2 + sl.y3) / 3;
+      drawAholaArrow(mx, my, 15, sl.x1 < 200 ? 0.5 : -0.5 + Math.PI, 0.4);
+    }
   }
 
-  // ── Rollover Lanes ──
+  // ── Rollover Lanes - "WAY AH" ──
   for (const lane of lanes) {
-    ctx.fillStyle = lane.lit ? '#ff0' : (lane.flash > 0 ? '#ff8' : '#332');
-    ctx.shadowColor = lane.lit ? '#ff0' : 'transparent';
-    ctx.shadowBlur = lane.lit ? 10 : 0;
-    ctx.beginPath();
-    ctx.arc(lane.x, lane.y, 10, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    // Arrow
-    ctx.strokeStyle = lane.lit ? '#ff0' : '#553';
+    const lit = lane.lit;
+    const flash = lane.flash > 0;
+
+    // Lane track
+    ctx.strokeStyle = lit ? AHOLA.ORANGE : 'rgba(245,130,32,0.2)';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(lane.x, lane.y + 15);
-    ctx.lineTo(lane.x, lane.y + 30);
-    ctx.moveTo(lane.x - 5, lane.y + 25);
-    ctx.lineTo(lane.x, lane.y + 30);
-    ctx.lineTo(lane.x + 5, lane.y + 25);
+    ctx.lineTo(lane.x, lane.y + 35);
+    ctx.stroke();
+
+    // Circle
+    ctx.fillStyle = lit ? AHOLA.ORANGE : (flash ? AHOLA.ORANGE_LIGHT : '#2a1008');
+    ctx.strokeStyle = lit ? AHOLA.ORANGE_LIGHT : AHOLA.ORANGE_DARK;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = lit ? AHOLA.ORANGE : 'transparent';
+    ctx.shadowBlur = lit ? 12 : 0;
+    ctx.beginPath();
+    ctx.arc(lane.x, lane.y, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Letter
+    ctx.fillStyle = lit ? AHOLA.BLACK : AHOLA.ORANGE;
+    ctx.font = 'bold 12px Arial Black, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(lane.label, lane.x, lane.y + 1);
+
+    // Arrow below
+    ctx.strokeStyle = lit ? AHOLA.ORANGE : 'rgba(245,130,32,0.3)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(lane.x - 4, lane.y + 30);
+    ctx.lineTo(lane.x, lane.y + 35);
+    ctx.lineTo(lane.x + 4, lane.y + 30);
     ctx.stroke();
   }
 
-  // ── Targets ──
+  // ── Targets - Ahola branded ──
   for (const t of targets) {
-    ctx.fillStyle = t.hit ? '#333' : (t.flash > 0 ? '#fff' : '#0ff');
-    ctx.shadowColor = t.hit ? 'transparent' : '#0ff';
-    ctx.shadowBlur = t.hit ? 0 : 6;
+    const hit = t.hit;
+    const flash = t.flash > 0;
+    ctx.fillStyle = hit ? AHOLA.GRAY_DARK : (flash ? AHOLA.WHITE : AHOLA.RED);
+    ctx.shadowColor = hit ? 'transparent' : AHOLA.RED;
+    ctx.shadowBlur = hit ? 0 : 8;
     ctx.fillRect(t.x, t.y, t.w, t.h);
     ctx.shadowBlur = 0;
+    // Label
+    if (!hit) {
+      ctx.save();
+      ctx.translate(t.x + t.w / 2, t.y + t.h / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillStyle = AHOLA.WHITE;
+      ctx.font = 'bold 10px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(t.label, 0, 0);
+      ctx.restore();
+    }
   }
 
-  // ── Bumpers ──
+  // ── Bumpers - Ahola branded with icons ──
   for (const b of bumpers) {
     const flash = b.flash > 0;
+
     // Glow
     ctx.shadowColor = b.color;
-    ctx.shadowBlur = flash ? 25 : 10;
+    ctx.shadowBlur = flash ? 30 : 12;
+
     // Outer ring
-    ctx.strokeStyle = flash ? '#fff' : b.color;
+    ctx.strokeStyle = flash ? AHOLA.WHITE : b.color;
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
     ctx.stroke();
-    // Fill
-    const grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
-    grad.addColorStop(0, flash ? '#fff' : b.color);
-    grad.addColorStop(1, flash ? b.color : '#111');
+
+    // Fill with Ahola gradient
+    const grad = ctx.createRadialGradient(b.x - b.r * 0.2, b.y - b.r * 0.2, 0, b.x, b.y, b.r);
+    grad.addColorStop(0, flash ? AHOLA.WHITE : b.color);
+    grad.addColorStop(0.6, flash ? b.color : shadeColor(b.color, -40));
+    grad.addColorStop(1, '#111');
     ctx.fillStyle = grad;
     ctx.fill();
     ctx.shadowBlur = 0;
-    // Score text
-    ctx.fillStyle = flash ? '#000' : '#fff';
-    ctx.font = 'bold 11px monospace';
+
+    // Inner decorative ring
+    ctx.strokeStyle = flash ? b.color : 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r * 0.65, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Label letter
+    ctx.fillStyle = flash ? AHOLA.BLACK : AHOLA.WHITE;
+    ctx.font = `bold ${b.r * 0.7}px Arial Black, Arial, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(b.score, b.x, b.y);
+    ctx.fillText(b.label, b.x, b.y + 1);
+
+    // Score beneath bumper
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '9px Arial, sans-serif';
+    ctx.fillText(b.score, b.x, b.y + b.r + 12);
   }
 
-  // ── Flippers ──
+  // ── Flippers - Ahola red/orange ──
   for (const f of flippers) {
     ctx.save();
     ctx.translate(f.x, f.y);
     ctx.rotate(f.angle * f.dir);
 
     const flipGrad = ctx.createLinearGradient(0, -FLIPPER_RADIUS, FLIPPER_LENGTH * f.dir, FLIPPER_RADIUS);
-    flipGrad.addColorStop(0, f.active ? '#ff8' : '#c80');
-    flipGrad.addColorStop(1, f.active ? '#fa0' : '#840');
+    flipGrad.addColorStop(0, f.active ? AHOLA.ORANGE_LIGHT : AHOLA.RED);
+    flipGrad.addColorStop(1, f.active ? AHOLA.ORANGE : AHOLA.RED_DARK);
 
     ctx.fillStyle = flipGrad;
-    ctx.shadowColor = f.active ? '#ff0' : '#840';
+    ctx.shadowColor = f.active ? AHOLA.ORANGE : AHOLA.RED_DARK;
     ctx.shadowBlur = f.active ? 15 : 5;
+
     ctx.beginPath();
     ctx.arc(0, 0, FLIPPER_RADIUS + 2, 0, Math.PI * 2);
     ctx.fill();
+
     ctx.beginPath();
     ctx.moveTo(0, -FLIPPER_RADIUS);
     ctx.lineTo(FLIPPER_LENGTH * f.dir, -FLIPPER_RADIUS * 0.5);
@@ -761,65 +1027,92 @@ function render() {
     ctx.lineTo(0, FLIPPER_RADIUS);
     ctx.arc(0, 0, FLIPPER_RADIUS, Math.PI / 2, -Math.PI / 2);
     ctx.fill();
+
+    // Ahola arrow on flipper
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.beginPath();
+    ctx.moveTo(15 * f.dir, -3);
+    ctx.lineTo(35 * f.dir, 0);
+    ctx.lineTo(15 * f.dir, 3);
+    ctx.closePath();
+    ctx.fill();
+
     ctx.shadowBlur = 0;
     ctx.restore();
   }
 
-  // ── Ball Trail ──
+  // ── Ball Trail - Ahola red/orange fade ──
   if (ball.alive && ball.trail.length > 1) {
     for (let i = 0; i < ball.trail.length - 1; i++) {
-      const alpha = (i / ball.trail.length) * 0.4;
-      const size = (i / ball.trail.length) * BALL_RADIUS * 0.7;
-      ctx.fillStyle = `rgba(255, 150, 50, ${alpha})`;
+      const t = i / ball.trail.length;
+      const alpha = t * 0.5;
+      const size = t * BALL_RADIUS * 0.8;
+      // Gradient from red to orange in trail
+      const r = Math.floor(227 + (245 - 227) * t);
+      const g = Math.floor(0 + 130 * t);
+      const b = Math.floor(11 + (32 - 11) * t);
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
       ctx.beginPath();
       ctx.arc(ball.trail[i].x, ball.trail[i].y, size, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  // ── Ball ──
+  // ── Ball - Silver with Ahola red glow ──
   if (ball.alive) {
-    ctx.shadowColor = '#fff';
-    ctx.shadowBlur = 12;
+    ctx.shadowColor = AHOLA.RED;
+    ctx.shadowBlur = 14;
     const ballGrad = ctx.createRadialGradient(ball.x - 3, ball.y - 3, 1, ball.x, ball.y, BALL_RADIUS);
     ballGrad.addColorStop(0, '#fff');
-    ballGrad.addColorStop(0.5, '#ddd');
-    ballGrad.addColorStop(1, '#888');
+    ballGrad.addColorStop(0.4, '#e0e0e0');
+    ballGrad.addColorStop(0.8, '#aaa');
+    ballGrad.addColorStop(1, '#777');
     ctx.fillStyle = ballGrad;
     ctx.beginPath();
     ctx.arc(ball.x, ball.y, BALL_RADIUS, 0, Math.PI * 2);
     ctx.fill();
+    // Tiny Ahola arrow on ball
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(227,0,11,0.4)';
+    ctx.beginPath();
+    ctx.moveTo(ball.x - 4, ball.y + 3);
+    ctx.lineTo(ball.x + 5, ball.y);
+    ctx.lineTo(ball.x - 4, ball.y - 3);
+    ctx.closePath();
+    ctx.fill();
     ctx.shadowBlur = 0;
   }
 
-  // ── Launch Indicator ──
+  // ── Launch Indicator - Ahola branded ──
   if (launching && !ball.alive && balls > 0) {
     const lh = launchPower * 1.5;
     const launchGrad = ctx.createLinearGradient(375, 680 - lh, 375, 680);
-    launchGrad.addColorStop(0, '#f00');
-    launchGrad.addColorStop(1, '#ff0');
+    launchGrad.addColorStop(0, AHOLA.RED);
+    launchGrad.addColorStop(1, AHOLA.ORANGE);
     ctx.fillStyle = launchGrad;
     ctx.fillRect(368, 680 - lh, 14, lh);
     // Plunger
-    ctx.fillStyle = '#aaa';
+    ctx.fillStyle = '#bbb';
     ctx.fillRect(370, 680, 10, 20);
-    ctx.fillStyle = '#888';
+    ctx.fillStyle = AHOLA.RED_DARK;
     ctx.beginPath();
-    ctx.arc(375, 700, 12, 0, Math.PI * 2);
+    ctx.arc(375, 702, 12, 0, Math.PI * 2);
     ctx.fill();
+    // Arrow on plunger
+    drawAholaArrow(375, 702, 12, -Math.PI / 2, 0.7);
   } else if (!ball.alive && balls > 0 && !gameOver) {
-    // Show ball ready in launcher
-    ctx.fillStyle = '#666';
+    ctx.fillStyle = AHOLA.GRAY;
     ctx.beginPath();
     ctx.arc(375, 650, BALL_RADIUS, 0, Math.PI * 2);
     ctx.fill();
     // Plunger
-    ctx.fillStyle = '#aaa';
+    ctx.fillStyle = '#bbb';
     ctx.fillRect(370, 680, 10, 20);
-    ctx.fillStyle = '#888';
+    ctx.fillStyle = AHOLA.RED_DARK;
     ctx.beginPath();
-    ctx.arc(375, 700, 12, 0, Math.PI * 2);
+    ctx.arc(375, 702, 12, 0, Math.PI * 2);
     ctx.fill();
+    drawAholaArrow(375, 702, 12, -Math.PI / 2, 0.5);
   }
 
   // ── Particles ──
@@ -827,9 +1120,20 @@ function render() {
     const alpha = p.life / p.maxLife;
     ctx.globalAlpha = alpha;
     ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
-    ctx.fill();
+    if (p.triangle) {
+      // Triangle particles for Ahola brand
+      const sz = p.size * alpha;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y - sz);
+      ctx.lineTo(p.x + sz * 0.87, p.y + sz * 0.5);
+      ctx.lineTo(p.x - sz * 0.87, p.y + sz * 0.5);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   ctx.globalAlpha = 1;
 
@@ -838,23 +1142,30 @@ function render() {
     const alpha = Math.min(1, p.life * 2);
     ctx.globalAlpha = alpha;
     ctx.fillStyle = p.color;
-    ctx.font = 'bold 14px monospace';
+    ctx.font = 'bold 14px Arial Black, Arial, sans-serif';
     ctx.textAlign = 'center';
+    ctx.shadowColor = AHOLA.RED;
+    ctx.shadowBlur = 6;
     ctx.fillText(p.text, p.x, p.y);
+    ctx.shadowBlur = 0;
   }
   ctx.globalAlpha = 1;
 
   // ── Controls Hint ──
   if (!ballInPlay && !gameOver && balls > 0) {
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.font = '12px monospace';
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.font = '11px Arial, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('TAP LEFT/RIGHT = FLIPPERS', 200, TABLE_H - 40);
-    ctx.fillText('HOLD BOTTOM-RIGHT = LAUNCH', 200, TABLE_H - 22);
+    ctx.fillText('TAP LEFT/RIGHT = FLIPPERS', 200, TABLE_H - 42);
+    ctx.fillText('HOLD BOTTOM-RIGHT = LAUNCH', 200, TABLE_H - 26);
+
+    // Animated arrow pointing to launch area
+    const bounceY = Math.sin(gameTime * 4) * 5;
+    drawAholaArrow(375, 570 + bounceY, 20, Math.PI / 2, 0.4);
   }
 
-  // ── Drain guard lines ──
-  ctx.strokeStyle = '#f008';
+  // ── Drain line ──
+  ctx.strokeStyle = AHOLA.RED + '44';
   ctx.lineWidth = 1;
   ctx.setLineDash([4, 4]);
   ctx.beginPath();
@@ -863,14 +1174,28 @@ function render() {
   ctx.stroke();
   ctx.setLineDash([]);
 
+  // ── Bottom branding ──
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.font = '9px Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('AHOLA GROUP  |  TRANSPORT  |  DIGITAL  |  SPECIAL', 200, TABLE_H - 6);
+
   ctx.restore();
+}
+
+// ── Utility ──
+function shadeColor(hex, percent) {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const r = Math.min(255, Math.max(0, (num >> 16) + percent));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + percent));
+  const b = Math.min(255, Math.max(0, (num & 0x0000FF) + percent));
+  return '#' + (0x1000000 + r * 0x10000 + g * 0x100 + b).toString(16).slice(1);
 }
 
 // ── Game Loop ──
 function gameLoop(timestamp) {
   const dt = lastTime ? (timestamp - lastTime) / 1000 : 1 / 60;
   lastTime = timestamp;
-
   update(dt);
   render();
   requestAnimationFrame(gameLoop);
